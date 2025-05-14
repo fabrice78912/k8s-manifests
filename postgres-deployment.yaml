@@ -1,30 +1,3 @@
-  # 1. PersistentVolume : pointe vers un dossier local sur ton Mac
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: postgres-pv
-spec:
-  capacity:
-    storage: 1Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  hostPath:
-    path: /data  # <-- Remplace ceci
----
-# 2. PersistentVolumeClaim : utilisé par le pod
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
----
-# 3. Deployment PostgreSQL avec pod anti-affinité et volume
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,7 +5,7 @@ metadata:
   labels:
     app: postgres
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app: postgres
@@ -50,7 +23,7 @@ spec:
                 operator: In
                 values:
                 - postgres
-            topologyKey: "kubernetes.io/hostname"
+            topologyKey: "kubernetes.io/hostname"      
       containers:
       - name: postgres
         image: postgres:latest
@@ -59,28 +32,20 @@ spec:
           valueFrom:
             secretKeyRef:
               name: postgres-secret
-              key: POSTGRES_USER
+              key: POSTGRES_USER  # PostgreSQL username from secret
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
               name: postgres-secret
-              key: POSTGRES_PASSWORD
+              key: POSTGRES_PASSWORD  # PostgreSQL password from secret
         - name: POSTGRES_DB
           valueFrom:
             secretKeyRef:
               name: postgres-secret
-              key: POSTGRES_DB
+              key: POSTGRES_DB  # PostgreSQL database name from secret
         ports:
         - containerPort: 5432
-        volumeMounts:
-        - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
-      volumes:
-      - name: postgres-storage
-        persistentVolumeClaim:
-          claimName: postgres-pvc
 ---
-# 4. Headless Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -91,5 +56,4 @@ spec:
   ports:
     - port: 5432
       targetPort: 5432
-  clusterIP: None  # Headless
-
+  clusterIP: None  # Headless service to allow direct communication between pods

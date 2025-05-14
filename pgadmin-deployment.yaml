@@ -1,29 +1,3 @@
-# 1. PersistentVolume
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: pgadmin-pv
-spec:
-  capacity:
-    storage: 1Gi
-  accessModes:
-    - ReadWriteMany
-  hostPath:
-    path: /data/pgadmin  # Répertoire local sur l’hôte (Minikube)
----
-# 2. PersistentVolumeClaim
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: pgadmin-pvc
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 1Gi
----
-# 3. Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -63,52 +37,40 @@ spec:
           valueFrom:
             secretKeyRef:
               name: pgadmin-secret
-              key: PGADMIN_DEFAULT_PASSWORD
+              key: PGADMIN_DEFAULT_PASSWORD  # Secret for pgAdmin password
         - name: POSTGRES_URL
           valueFrom:
             configMapKeyRef:
               name: pgadmin-config
-              key: POSTGRES_URL
+              key: POSTGRES_URL  # Referring to ConfigMap for the PostgreSQL URL
         - name: POSTGRES_DB
           valueFrom:
             secretKeyRef:
               name: postgres-secret
-              key: POSTGRES_DB
+              key: POSTGRES_DB    # The PostgreSQL database name
         - name: POSTGRES_USER
           valueFrom:
             secretKeyRef:
               name: postgres-secret
-              key: POSTGRES_USER
+              key: POSTGRES_USER  # Referring to the Secret for the PostgreSQL user
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
               name: postgres-secret
-              key: POSTGRES_PASSWORD
+              key: POSTGRES_PASSWORD  # Referring to the Secret for the PostgreSQL password
         ports:
         - containerPort: 80
-        volumeMounts:
-        - name: pgadmin-data
-          mountPath: /var/lib/pgadmin
-        - name: tmp-volume
-          mountPath: /tmp
-      volumes:
-      - name: pgadmin-data
-        persistentVolumeClaim:
-          claimName: pgadmin-pvc
-      - name: tmp-volume
-        emptyDir: {}
 ---
-# 4. Service
 apiVersion: v1
 kind: Service
 metadata:
   name: pgadmin-service
 spec:
-  type: NodePort
+  type: LoadBalancer  # ✅ Corrigé ici
   selector:
     app: pgadmin
   ports:
     - protocol: TCP
       port: 80
       targetPort: 80
-      nodePort: 30090
+      nodePort: 30090  # ✅ Exposition fixe sur le port 30080
